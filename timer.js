@@ -4,15 +4,18 @@ import Digits from './digits.js';
 
 const SECONDS = 1;
 const MINUTES = 0;
+const DELTA_THRESHOLD = 120;
 
 class Timer {
-  constructor(container,
-              minutesInput,
-              secondsInput,
-              startStopButton,
-              video,
-              digitsMinutes,
-              digitsSeconds) {
+  constructor(
+    container,
+    minutesInput,
+    secondsInput,
+    startStopButton,
+    video,
+    digitsMinutes,
+    digitsSeconds
+  ) {
     this.startTime_ = 0;
     this.countDownInterval_ = 0;
     this.showTime_ = this.showTime_.bind(this);
@@ -23,12 +26,11 @@ class Timer {
     this.video_ = video;
     this.digitsMinutes_ = new Digits(digitsMinutes);
     this.digitsSeconds_ = new Digits(digitsSeconds);
-    this.inputs_ = [
-      this.minutesInput_,
-      this.secondsInput_
-    ]
+    this.inputs_ = [this.minutesInput_, this.secondsInput_];
+    this.debounce = 0;
+    this.delta = 0;
 
-    this.startStopButton_.addEventListener('click', event => {
+    this.startStopButton_.addEventListener('click', (event) => {
       if (this.container_.classList.contains('count-down')) {
         this.stopAlarm_();
       } else {
@@ -36,7 +38,7 @@ class Timer {
       }
     });
 
-    this.container_.addEventListener('keydown', event => {
+    this.container_.addEventListener('keydown', (event) => {
       let isTextInput = event.target.matches('input:not([type=button])');
       switch (event.code) {
         case 'ArrowUp':
@@ -67,18 +69,25 @@ class Timer {
       }
     });
 
-    this.container_.addEventListener('input', event => {
+    this.container_.addEventListener('input', (event) => {
       const target = event.target;
       target.value = target.value.slice(0, target.selectionEnd);
       target.value = target.value.slice(target.value.length - 2);
-      target.value = Math.max(
-          0, Math.min(60, Number.parseInt(target.value))) | 0;
+      target.value =
+        Math.max(0, Math.min(60, Number.parseInt(target.value))) | 0;
       this.updateDigits_();
     });
 
-    window.addEventListener('wheel', event => {
+    window.addEventListener('wheel', (event) => {
       if (event.target.matches('input:not([type=button])')) {
-        this.updateValue_(event.target, event.deltaY > 0 ? 1 : -1);
+        const candDelta =
+          (this.delta * event.deltaY < 0 ? 0 : this.delta) + event.deltaY;
+        if (-DELTA_THRESHOLD < candDelta && candDelta < DELTA_THRESHOLD) {
+          this.delta = candDelta;
+          return;
+        }
+        this.delta = 0;
+        this.updateValue_(event.target, candDelta > 0 ? 1 : -1);
       }
     });
 
@@ -98,8 +107,8 @@ class Timer {
   }
 
   setStartTime_() {
-    let values = this.inputs_.map(input => {
-      let value =  Math.abs(parseInt(input.value)) | 0;
+    let values = this.inputs_.map((input) => {
+      let value = Math.abs(parseInt(input.value)) | 0;
       input.value = this.format_(value);
       input.disabled = true;
       return value;
@@ -116,7 +125,7 @@ class Timer {
     clearInterval(this.countDownInterval_);
     this.video_.pause();
     this.container_.classList.remove('count-down');
-    this.inputs_.forEach(input => input.disabled = false);
+    this.inputs_.forEach((input) => (input.disabled = false));
   }
 
   showTime_() {
@@ -149,8 +158,5 @@ class Timer {
     return (number < 10 ? '0' : '') + String(number);
   }
 }
-
-
-
 
 export default Timer;
